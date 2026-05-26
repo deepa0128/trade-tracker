@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment
+.env
+
+# Submission notes (local only)
+EMAIL.md
+
+# Editor / AI tooling (local only)
+.claude/
+.cursor/
+.agents/
+.mcp.json
+.windsurfrules
+
+# Jetro workspace state (keep frames + refresh scripts)
+.jetro/*.json
+.jetro/*.duckdb
+.jetro/canvases/
+.jetro/connections/
+.jetro/connector_queue/
+.jetro/connectors/
+.jetro/credentials/
+.jetro/daemon/
+.jetro/dashboards/
+.jetro/datasources/
+.jetro/docs/
+.jetro/elements/
+.jetro/lib/
+.jetro/models/
+.jetro/notes/
+.jetro/queries/
+.jetro/recipes/
+.jetro/render_queue/
+.jetro/scripts/
+.jetro/sources/
+.jetro/templates/
+
+# Cached market data
+data/stocks/
+data/datasets/
+data/lists/
+
+# Jetro project state (canvas sessions)
+projects/
