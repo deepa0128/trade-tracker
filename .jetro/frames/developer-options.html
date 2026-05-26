@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Developer Options</title>
+<style>
+  :root {
+    --bg: #0d1117; --surface: #161b22; --card: #1c2128;
+    --border: #30363d; --text: #e6edf3; --muted: #8b949e;
+    --green: #3fb950; --yellow: #d29922; --red: #f85149;
+    --blue: #58a6ff; --purple: #bc8cff; --orange: #e3b341;
+    --accent: #238636;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace; background: var(--bg); color: var(--text); font-size: 13px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Header */
+  .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 16px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .header-title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .header-badge { font-size: 10px; padding: 2px 7px; border-radius: 12px; background: #1f2d1f; color: var(--green); border: 1px solid #2d4a2d; font-weight: 500; }
+  .header-badge.warn { background: #2d2400; color: var(--yellow); border-color: #4a3800; }
+  .header-badge.err  { background: #2d1515; color: var(--red);    border-color: #4a2020; }
+  .refresh-btn { margin-left: auto; padding: 4px 10px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; transition: all .15s; }
+  .refresh-btn:hover { background: var(--card); color: var(--text); }
+  .ts { font-size: 11px; color: var(--muted); }
+
+  /* Tabs */
+  .tabs { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 12px; flex-shrink: 0; overflow-x: auto; }
+  .tab { padding: 9px 14px; cursor: pointer; font-size: 12px; color: var(--muted); border-bottom: 2px solid transparent; white-space: nowrap; transition: all .15s; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+  /* Content */
+  .content { flex: 1; overflow-y: auto; padding: 14px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* Grid */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
+
+  /* Cards */
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+  .card-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+  .card-val { font-size: 20px; font-weight: 600; }
+  .card-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  /* Status dots */
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .dot.up { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .dot.degraded { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+  .dot.down { background: var(--red); box-shadow: 0 0 6px var(--red); }
+  .dot.unknown { background: var(--muted); }
+
+  /* Resource rows */
+  .resource-row { display: flex; align-items: center; padding: 9px 12px; border-bottom: 1px solid var(--border); }
+  .resource-row:last-child { border-bottom: none; }
+  .resource-name { font-weight: 500; flex: 1; }
+  .resource-status { font-size: 11px; font-weight: 500; margin-right: 12px; }
+  .resource-meta { font-size: 11px; color: var(--muted); }
+  .status-up { color: var(--green); }
+  .status-degraded { color: var(--yellow); }
+  .status-down { color: var(--red); }
+
+  /* Section */
+  .section { margin-bottom: 14px; }
+  .section-hdr { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  td { padding: 7px 10px; border-bottom: 1px solid rgba(48,54,61,.5); font-size: 12px; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,.02); }
+  .mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; }
+
+  /* Chips */
+  .chip { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; }
+  .chip.NSE { background: #1a2d40; color: var(--blue); border: 1px solid #1e3a52; }
+  .chip.BSE { background: #2d1f40; color: var(--purple); border: 1px solid #3d2a52; }
+  .chip.NSE_BSE { background: #1f2d1f; color: var(--green); border: 1px solid #2a3d2a; }
+
+  /* Meter */
+  .meter { background: var(--border); border-radius: 4px; height: 6px; margin-top: 5px; overflow: hidden; }
+  .meter-fill { height: 100%; border-radius: 4px; transition: width .5s; }
+  .meter-fill.green { background: var(--green); }
+  .meter-fill.yellow { background: var(--yellow); }
+  .meter-fill.red { background: var(--red); }
+
+  /* Route list */
+  .route-line { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 4px; }
+  .route-line:hover { background: rgba(255,255,255,.03); }
+  .method { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 3px; min-width: 38px; text-align: center; }
+  .method.GET  { background: #1a3040; color: #58a6ff; }
+  .method.POST { background: #1f3020; color: #3fb950; }
+  .method.DELETE { background: #3d1515; color: #f85149; }
+  .route-path { font-family: monospace; font-size: 12px; color: var(--text); }
+  .route-desc { font-size: 11px; color: var(--muted); margin-left: auto; }
+
+  /* Env */
+  .env-row { display: flex; padding: 6px 10px; border-bottom: 1px solid rgba(48,54,61,.4); font-family: monospace; font-size: 11px; }
+  .env-row:last-child { border-bottom: none; }
+  .env-key { color: var(--blue); min-width: 200px; }
+  .env-val { color: var(--text); }
+  .env-val.redacted { color: var(--muted); font-style: italic; }
+
+  /* Error banner */
+  .error-banner { background: #2d1515; border: 1px solid #4a2020; border-radius: 8px; padding: 12px; color: var(--red); font-size: 12px; margin-bottom: 14px; }
+
+  /* Loading */
+  .loading { text-align: center; padding: 40px; color: var(--muted); }
+  .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin .8s linear infinite; margin-bottom: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Uptime bar */
+  .uptime-cell { display: flex; gap: 2px; align-items: center; }
+  .uptime-tick { width: 8px; height: 16px; border-radius: 2px; }
+  .uptime-tick.ok { background: var(--green); }
+  .uptime-tick.warn { background: var(--yellow); }
+  .uptime-tick.down { background: var(--red); }
+  .uptime-tick.grey { background: var(--border); }
+
+  scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+</style>
+</head>
+<body>
+
+<div class="header">
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="14" height="14" rx="3" fill="#238636"/><path d="M4 8h8M8 4v8" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg>
+  <span class="header-title">Developer Options</span>
+  <span id="overall-badge" class="header-badge warn">Loading…</span>
+  <span class="ts" id="gen-ts"></span>
+  <button class="refresh-btn" onclick="loadAll()">↻ Refresh</button>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('overview')">Overview</div>
+  <div class="tab" onclick="switchTab('resources')">Resources</div>
+  <div class="tab" onclick="switchTab('routes')">API Routes</div>
+  <div class="tab" onclick="switchTab('runtime')">Runtime</div>
+  <div class="tab" onclick="switchTab('database')">Database</div>
+  <div class="tab" onclick="switchTab('env')">Config</div>
+</div>
+
+<div class="content">
+
+  <!-- ── OVERVIEW ── -->
+  <div id="panel-overview" class="panel active">
+    <div id="overview-content"><div class="loading"><div class="spinner"></div><br>Fetching diagnostics…</div></div>
+  </div>
+
+  <!-- ── RESOURCES ── -->
+  <div id="panel-resources" class="panel">
+    <div id="resources-content"><div class="loading"><div class="spinner"></div><br>Loading…</div></div>
+  </div>
+
+  <!-- ── API ROUTES ── -->
+  <div id="panel-routes" class="panel">
+    <div id="routes-content"><div class="loading"><div class="spinner"></div><br>Loading…</div></div>
+  </div>
+
+  <!-- ── RUNTIME ── -->
+  <div id="panel-runtime" class="panel">
+    <div id="runtime-content"><div class="loading"><div class="spinner"></div><br>Loading…</div></div>
+  </div>
+
+  <!-- ── DATABASE ── -->
+  <div id="panel-database" class="panel">
+    <div id="database-content"><div class="loading"><div class="spinner"></div><br>Loading…</div></div>
+  </div>
+
+  <!-- ── CONFIG ── -->
+  <div id="panel-env" class="panel">
+    <div id="env-content"><div class="loading"><div class="spinner"></div><br>Loading…</div></div>
+  </div>
+
+</div>
+
+<script>
+const BASE = 'http://localhost:3000';
+let data = null;
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    const ids = ['overview','resources','routes','runtime','database','env'];
+    t.classList.toggle('active', ids[i] === name);
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+function statusDot(s) {
+  return `<span class="dot ${s || 'unknown'}"></span>`;
+}
+function statusText(s) {
+  const cls = s === 'up' ? 'status-up' : s === 'degraded' ? 'status-degraded' : 'status-down';
+  return `<span class="${cls}">${(s||'unknown').toUpperCase()}</span>`;
+}
+
+function renderOverview(d) {
+  const h = d.health;
+  const r = d.runtime;
+  const overall = h.status;
+
+  const badge = document.getElementById('overall-badge');
+  badge.textContent = overall === 'up' ? 'All Systems Operational' : overall === 'degraded' ? 'Degraded' : 'Outage';
+  badge.className = 'header-badge' + (overall === 'up' ? '' : overall === 'degraded' ? ' warn' : ' err');
+
+  document.getElementById('gen-ts').textContent = new Date(d.generatedAt).toLocaleTimeString();
+
+  const memPct = Math.round(r.memoryMb.heapUsed / r.memoryMb.heapTotal * 100);
+  const memColor = memPct > 85 ? 'red' : memPct > 65 ? 'yellow' : 'green';
+
+  const uptime = r.uptimeSeconds;
+  const uh = Math.floor(uptime/3600), um = Math.floor((uptime%3600)/60), us = uptime%60;
+  const uptimeStr = uh ? `${uh}h ${um}m` : um ? `${um}m ${us}s` : `${us}s`;
+
+  document.getElementById('overview-content').innerHTML = `
+    <div class="grid-4">
+      <div class="card">
+        <div class="card-title">System Status</div>
+        <div class="card-val">${statusDot(overall)}${overall.toUpperCase()}</div>
+        <div class="card-sub">All components checked</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Uptime</div>
+        <div class="card-val" style="color:var(--green)">${uptimeStr}</div>
+        <div class="card-sub">PID ${r.pid}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Heap Used</div>
+        <div class="card-val" style="color:var(--${memColor})">${r.memoryMb.heapUsed} MB</div>
+        <div class="card-sub">of ${r.memoryMb.heapTotal} MB total</div>
+        <div class="meter"><div class="meter-fill ${memColor}" style="width:${memPct}%"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Cache Entries</div>
+        <div class="card-val" style="color:var(--blue)">${d.cache.entries.size ?? d.cache.entries}</div>
+        <div class="card-sub">In-memory quote TTL</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-hdr">Component Health</div>
+      <div class="card" style="padding:0">
+        ${Object.entries(h.components || {}).map(([name, comp]) => `
+          <div class="resource-row">
+            <span>${statusDot(comp.status)}</span>
+            <span class="resource-name">${name}</span>
+            <span class="resource-status ${comp.status === 'up' ? 'status-up' : comp.status === 'degraded' ? 'status-degraded' : 'status-down'}">${comp.status.toUpperCase()}</span>
+            <span class="resource-meta">${comp.latencyMs != null ? comp.latencyMs + 'ms' : ''} ${comp.message || ''}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="section">
+        <div class="section-hdr">Exchange Registry</div>
+        <div class="card" style="padding:0">
+          ${d.exchanges.map(ex => `
+            <div class="resource-row">
+              <span class="chip ${ex.id}">${ex.id}</span>
+              <span class="resource-name" style="margin-left:8px">${ex.displayName}</span>
+              <span class="resource-meta">${ex.currency} · ${ex.timezone}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-hdr">Load Average (1m / 5m / 15m)</div>
+        <div class="card">
+          <div style="display:flex;gap:16px;margin-bottom:10px">
+            ${r.loadAvg.map((v,i) => `<div><div class="card-val" style="font-size:18px;color:var(--${v>r.cpus*0.8?'red':v>r.cpus*0.5?'yellow':'green'})">${v}</div><div class="card-sub">${['1m','5m','15m'][i]}</div></div>`).join('')}
+          </div>
+          <div class="card-sub">${r.cpus} CPUs · ${r.platform} ${r.arch}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderResources(d) {
+  const h = d.health;
+  document.getElementById('resources-content').innerHTML = `
+    <div class="section">
+      <div class="section-hdr">Service Components</div>
+      <div class="card" style="padding:0">
+        ${Object.entries(h.components || {}).map(([name, comp]) => `
+          <div class="resource-row">
+            ${statusDot(comp.status)}
+            <span class="resource-name">${name.charAt(0).toUpperCase() + name.slice(1)}</span>
+            ${statusText(comp.status)}
+            <span class="resource-meta">${comp.latencyMs != null ? `${comp.latencyMs}ms latency` : ''}</span>
+            ${comp.message ? `<span class="resource-meta" style="margin-left:8px;color:var(--muted)">${comp.message}</span>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-hdr">Quote Cache</div>
+      <div class="card">
+        ${renderCacheStatus(d.cache.entries)}
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-hdr">Exchange Registry — ${d.exchanges.length} registered</div>
+      <div class="card" style="padding:0">
+        <table>
+          <thead><tr><th>ID</th><th>Display Name</th><th>Ticker Suffix</th><th>Currency</th><th>Timezone</th><th>Market Hours</th></tr></thead>
+          <tbody>
+            ${d.exchanges.map(ex => `
+              <tr>
+                <td><span class="chip ${ex.id}">${ex.id}</span></td>
+                <td>${ex.displayName}</td>
+                <td class="mono">${ex.tickerSuffix}</td>
+                <td>${ex.currency}</td>
+                <td class="mono" style="font-size:10px">${ex.timezone}</td>
+                <td class="mono" style="font-size:10px">${ex.marketHours?.open ?? '–'} – ${ex.marketHours?.close ?? '–'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderCacheStatus(entries) {
+  if (typeof entries === 'number' || typeof entries === 'object' && 'size' in entries) {
+    const size = entries.size ?? entries;
+    return `<div style="display:flex;gap:20px;align-items:center">
+      <div><div class="card-val" style="color:var(--blue)">${size}</div><div class="card-sub">Cached quotes</div></div>
+      <div><div class="card-val" style="color:var(--muted)">60s</div><div class="card-sub">TTL per entry</div></div>
+    </div>`;
+  }
+  if (Array.isArray(entries)) {
+    return `<table><thead><tr><th>Ticker</th><th>Age</th></tr></thead><tbody>
+      ${entries.map(e => `<tr><td class="mono">${e.ticker}</td><td>${e.ageMs ?? ''}ms</td></tr>`).join('')}
+    </tbody></table>`;
+  }
+  return `<span class="mono">${JSON.stringify(entries)}</span>`;
+}
+
+function renderRoutes(d) {
+  // Well-known routes for this API
+  const routes = [
+    { method:'POST', path:'/api/auth/guest',           desc:'Create anonymous guest session' },
+    { method:'POST', path:'/api/auth/register',        desc:'Register new user account' },
+    { method:'POST', path:'/api/auth/login',           desc:'Authenticate and get JWT' },
+    { method:'POST', path:'/api/auth/migrate-guest',   desc:'Merge guest data into account' },
+    { method:'GET',  path:'/api/auth/me',              desc:'Current user profile' },
+    { method:'GET',  path:'/api/portfolios',           desc:'List all portfolios for owner' },
+    { method:'POST', path:'/api/portfolios',           desc:'Create new portfolio' },
+    { method:'GET',  path:'/api/portfolios/:id',       desc:'Get portfolio with holdings' },
+    { method:'DELETE',path:'/api/portfolios/:id',      desc:'Delete portfolio' },
+    { method:'GET',  path:'/api/portfolios/:id/snapshot', desc:'Live P&L with market quotes' },
+    { method:'GET',  path:'/api/portfolios/:id/transactions', desc:'Transaction history' },
+    { method:'POST', path:'/api/portfolios/:id/transactions', desc:'Record BUY or SELL' },
+    { method:'GET',  path:'/api/market/quote/:ticker', desc:'Single quote (cache-first)' },
+    { method:'GET',  path:'/api/market/bulk',          desc:'Bulk quotes ?tickers=A,B,C' },
+    { method:'GET',  path:'/api/market/stock/:ticker', desc:'Full stock drilldown (optional auth)' },
+    { method:'GET',  path:'/api/market/predict/:ticker', desc:'30-day GBM price prediction' },
+    { method:'GET',  path:'/api/health',               desc:'Aggregate health check' },
+    { method:'GET',  path:'/api/health/cache',         desc:'Cache stats' },
+    { method:'GET',  path:'/api/dev',                  desc:'Full diagnostic snapshot' },
+    { method:'GET',  path:'/api/dev/routes',           desc:'Registered Fastify routes' },
+    { method:'GET',  path:'/api/dev/config',           desc:'Sanitized environment config' },
+  ];
+
+  // Also show raw routes from server if available
+  const rawSection = d.rawRoutes ? `
+    <div class="section">
+      <div class="section-hdr">Fastify Route Tree (raw)</div>
+      <div class="card">
+        <pre style="font-size:10px;color:var(--muted);overflow-x:auto;line-height:1.6">${escapeHtml(d.rawRoutes)}</pre>
+      </div>
+    </div>` : '';
+
+  document.getElementById('routes-content').innerHTML = `
+    <div class="section">
+      <div class="section-hdr">Registered Endpoints (${routes.length})</div>
+      <div class="card" style="padding:6px 0">
+        ${routes.map(r => `
+          <div class="route-line">
+            <span class="method ${r.method}">${r.method}</span>
+            <span class="route-path">${r.path}</span>
+            <span class="route-desc">${r.desc}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    ${rawSection}
+  `;
+}
+
+function renderRuntime(d) {
+  const r = d.runtime;
+  const heapPct = Math.round(r.memoryMb.heapUsed / r.memoryMb.heapTotal * 100);
+  const rssPct  = Math.round(r.memoryMb.rss / r.totalMemMb * 100);
+  const freePct = Math.round(r.freeMemMb / r.totalMemMb * 100);
+  const uptime = r.uptimeSeconds;
+  const uh = Math.floor(uptime/3600), um = Math.floor((uptime%3600)/60), us = uptime%60;
+
+  document.getElementById('runtime-content').innerHTML = `
+    <div class="section">
+      <div class="section-hdr">Process</div>
+      <div class="grid-4">
+        <div class="card"><div class="card-title">Node.js</div><div class="card-val" style="font-size:16px;color:var(--green)">${r.nodeVersion}</div><div class="card-sub">${r.platform} ${r.arch}</div></div>
+        <div class="card"><div class="card-title">PID</div><div class="card-val" style="font-size:16px">${r.pid}</div><div class="card-sub">Process ID</div></div>
+        <div class="card"><div class="card-title">Uptime</div><div class="card-val" style="font-size:16px;color:var(--blue)">${uh}h ${um}m ${us}s</div><div class="card-sub">${uptime.toLocaleString()}s total</div></div>
+        <div class="card"><div class="card-title">CPUs</div><div class="card-val" style="font-size:16px">${r.cpus}</div><div class="card-sub">Logical cores</div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-hdr">Memory</div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Heap (V8)</div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="color:var(--${heapPct>85?'red':heapPct>65?'yellow':'green'})">${r.memoryMb.heapUsed} MB used</span>
+            <span style="color:var(--muted)">${r.memoryMb.heapTotal} MB total</span>
+          </div>
+          <div class="meter"><div class="meter-fill ${heapPct>85?'red':heapPct>65?'yellow':'green'}" style="width:${heapPct}%"></div></div>
+          <div class="card-sub" style="margin-top:5px">${heapPct}% heap utilisation</div>
+        </div>
+        <div class="card">
+          <div class="card-title">RSS vs System RAM</div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="color:var(--blue)">${r.memoryMb.rss} MB RSS</span>
+            <span style="color:var(--muted)">${r.totalMemMb} MB total</span>
+          </div>
+          <div class="meter"><div class="meter-fill green" style="width:${rssPct}%"></div></div>
+          <div class="card-sub" style="margin-top:5px">External: ${r.memoryMb.external} MB · Free: ${r.freeMemMb} MB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-hdr">CPU Load Average</div>
+      <div class="card">
+        <div class="grid-3" style="margin-bottom:0">
+          ${r.loadAvg.map((v,i) => {
+            const pct = Math.min(100, Math.round(v / r.cpus * 100));
+            const col = pct > 80 ? 'red' : pct > 50 ? 'yellow' : 'green';
+            return `<div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                <span style="color:var(--muted)">${['1 min','5 min','15 min'][i]}</span>
+                <span style="color:var(--${col})">${v}</span>
+              </div>
+              <div class="meter"><div class="meter-fill ${col}" style="width:${pct}%"></div></div>
+              <div class="card-sub" style="margin-top:4px">${pct}% of ${r.cpus} CPUs</div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderDatabase(d) {
+  const db = d.database;
+  document.getElementById('database-content').innerHTML = `
+    <div class="section">
+      <div class="section-hdr">Applied Migrations (${db.migrations?.length ?? 0})</div>
+      <div class="card" style="padding:0">
+        ${db.migrations?.length ? `<table>
+          <thead><tr><th>#</th><th>Filename</th><th>Applied At</th></tr></thead>
+          <tbody>
+            ${db.migrations.map((m, i) => `
+              <tr>
+                <td style="color:var(--muted)">${i+1}</td>
+                <td class="mono">${m.filename}</td>
+                <td class="mono" style="color:var(--muted)">${new Date(m.appliedAt).toLocaleString()}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>` : `<div style="padding:12px;color:var(--muted);text-align:center">No migration data (DB may be unavailable)</div>`}
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-hdr">Table Row Counts</div>
+      <div class="card" style="padding:0">
+        ${db.tables?.length ? `<table>
+          <thead><tr><th>Table</th><th>Live Rows</th><th>Bar</th></tr></thead>
+          <tbody>
+            ${(() => {
+              const max = Math.max(1, ...db.tables.map(t => parseInt(t.rowCount || t.row_count || 0)));
+              return db.tables.map(t => {
+                const count = parseInt(t.rowCount ?? t.row_count ?? 0);
+                const pct = Math.round(count / max * 100);
+                return `<tr>
+                  <td class="mono">${t.tableName ?? t.table_name}</td>
+                  <td style="color:var(--blue);font-weight:600">${count.toLocaleString()}</td>
+                  <td style="min-width:120px"><div class="meter"><div class="meter-fill green" style="width:${pct}%"></div></div></td>
+                </tr>`;
+              }).join('');
+            })()}
+          </tbody>
+        </table>` : `<div style="padding:12px;color:var(--muted);text-align:center">No table stats (DB may be unavailable)</div>`}
+      </div>
+    </div>
+  `;
+}
+
+function renderEnv(d) {
+  const cfg = d.config;
+  document.getElementById('env-content').innerHTML = `
+    <div class="section">
+      <div class="section-hdr">Sanitized Environment — ${Object.keys(cfg).length} variables</div>
+      <div class="card" style="padding:0">
+        ${Object.entries(cfg).map(([k, v]) => `
+          <div class="env-row">
+            <span class="env-key">${k}</span>
+            <span class="env-val ${v.includes('redacted') ? 'redacted' : ''}">${escapeHtml(v)}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div style="margin-top:8px;color:var(--muted);font-size:11px;padding:0 2px">
+      Secrets (JWT_SECRET, DB_PASSWORD, API keys) are masked. All other sensitive keys matching /secret|password|key|token|jwt/i are redacted.
+    </div>
+  `;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function showError(msg) {
+  const banner = `<div class="error-banner">⚠ ${escapeHtml(msg)}</div>`;
+  ['overview','resources','runtime','database','env'].forEach(id => {
+    document.getElementById(id + '-content').innerHTML = banner + `
+      <div class="card" style="margin-top:10px">
+        <div class="card-title">Connection</div>
+        <div style="color:var(--muted);font-size:12px;margin-top:6px">
+          Ensure the API server is running:<br>
+          <span class="mono" style="color:var(--blue)">npm run dev</span> →
+          <span class="mono" style="color:var(--blue)">http://localhost:3000</span>
+        </div>
+      </div>`;
+  });
+  document.getElementById('routes-content').innerHTML = banner;
+  const badge = document.getElementById('overall-badge');
+  badge.textContent = 'Offline';
+  badge.className = 'header-badge err';
+}
+
+async function loadAll() {
+  try {
+    const [devRes, routesRes] = await Promise.all([
+      fetch(`${BASE}/api/dev`),
+      fetch(`${BASE}/api/dev/routes`),
+    ]);
+
+    if (!devRes.ok) throw new Error(`/api/dev returned ${devRes.status}`);
+    data = await devRes.json();
+
+    let rawRoutes = null;
+    if (routesRes.ok) {
+      const rd = await routesRes.json();
+      rawRoutes = rd.routes;
+    }
+
+    renderOverview(data);
+    renderResources(data);
+    renderRoutes({ ...data, rawRoutes });
+    renderRuntime(data);
+    renderDatabase(data);
+    renderEnv(data);
+
+  } catch (e) {
+    showError(e.message || 'Could not connect to API server at ' + BASE);
+    // Render routes statically even if offline
+    renderRoutes({ exchanges: [] });
+  }
+}
+
+// Auto-refresh every 30 seconds
+loadAll();
+setInterval(loadAll, 30000);
+
+// Listen for Jetro refresh events
+document.addEventListener('jet:refresh', () => loadAll());
+</script>
+</body>
+</html>

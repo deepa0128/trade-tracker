@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'Inter',system-ui,sans-serif; background:#0f1117; color:#e2e8f0; padding:16px; }
+h2 { font-size:15px; font-weight:700; margin-bottom:2px; }
+.subtitle { font-size:11px; color:#64748b; margin-bottom:14px; }
+.picker-row { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+select { background:#1e2130; border:1px solid #2d3148; color:#e2e8f0; padding:6px 10px; border-radius:7px; font-size:12px; cursor:pointer; min-width:220px; }
+select:focus { outline:none; border-color:#6366f1; }
+.exch { padding:3px 8px; border-radius:5px; font-size:10px; font-weight:700; }
+.NS { background:#1e3a5f; color:#60a5fa; } .BO { background:#14532d; color:#4ade80; }
+.stock-header { display:flex; align-items:flex-start; gap:16px; margin-bottom:14px; }
+.stock-name h3 { font-size:18px; font-weight:800; }
+.stock-name .tick { font-size:12px; color:#64748b; font-family:monospace; margin-top:2px; }
+.price-block { text-align:right; margin-left:auto; }
+.price-block .ltp { font-size:24px; font-weight:800; }
+.price-block .chg { font-size:13px; margin-top:2px; }
+.pos { color:#4ade80; } .neg { color:#f87171; }
+.kpis { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-bottom:14px; }
+.kpi { background:#1e2130; border:1px solid #2d3148; border-radius:8px; padding:10px 12px; }
+.kl { font-size:9px; color:#64748b; text-transform:uppercase; letter-spacing:.7px; }
+.kv { font-size:14px; font-weight:700; margin-top:3px; }
+.chart-box { background:#1e2130; border:1px solid #2d3148; border-radius:10px; padding:12px; margin-bottom:14px; }
+.toggles { display:flex; gap:6px; margin-bottom:8px; }
+.tog { padding:3px 10px; border-radius:5px; font-size:10px; font-weight:600; cursor:pointer; border:1px solid #2d3148; color:#64748b; background:#0f1117; }
+.tog.on { border-color:#6366f1; color:#818cf8; background:#1a1e3a; }
+.signal-block { display:flex; align-items:center; gap:10px; background:#1e2130; border:1px solid #2d3148; border-radius:9px; padding:10px 14px; margin-bottom:14px; }
+.pill { padding:4px 14px; border-radius:99px; font-size:13px; font-weight:800; }
+.pill-BUY  { background:#14532d; color:#4ade80; }
+.pill-HOLD { background:#1e3a5f; color:#60a5fa; }
+.pill-WATCH{ background:#451a03; color:#fbbf24; }
+.pill-SELL { background:#4a1515; color:#f87171; }
+.sig-desc { font-size:12px; color:#94a3b8; }
+.position { background:#1e2130; border:1px solid #2d3148; border-radius:9px; padding:12px; margin-bottom:14px; }
+.pos-row { display:flex; justify-content:space-between; font-size:12px; padding:4px 0; border-bottom:1px solid #1a1e2e; }
+.pos-row:last-child { border-bottom:none; }
+.pos-label { color:#94a3b8; }
+.placeholder { text-align:center; padding:40px; color:#475569; font-size:13px; }
+.loading { text-align:center; padding:20px; color:#64748b; }
+</style>
+</head>
+<body>
+
+<h2>&#x1F50D; Stock Deep Drill</h2>
+<div class="subtitle">Select a stock to see history, investment, predictions and signals</div>
+
+<div class="picker-row">
+  <select id="picker" onchange="drill(this.value)">
+    <option value="">— waiting for data… —</option>
+  </select>
+  <span id="exch-badge"></span>
+</div>
+
+<div id="detail"><div class="placeholder">Choose a stock from the dropdown</div></div>
+
+<script>
+let allData = null;
+let showHist = true, showPred = true, showBand = true;
+let curTicker = null;
+
+function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
+function pct(n) { return (n>=0?'+':'')+n.toFixed(2)+'%'; }
+function cls(n) { return n>=0?'pos':'neg'; }
+function sig(p) {
+  if (p < -10) return ['SELL', 'Strong downtrend — consider exiting'];
+  if (p < 0)   return ['WATCH', 'Under avg cost — monitor closely'];
+  if (p < 15)  return ['HOLD', 'Steady — maintain position'];
+  return ['BUY', 'Strong momentum — consider adding'];
+}
+
+function toggleLayer(k) {
+  if (k==='hist') showHist = !showHist;
+  if (k==='pred') showPred = !showPred;
+  if (k==='band') showBand = !showBand;
+  document.getElementById('tog-hist').className = 'tog'+(showHist?' on':'');
+  document.getElementById('tog-pred').className = 'tog'+(showPred?' on':'');
+  document.getElementById('tog-band').className = 'tog'+(showBand?' on':'');
+  if (curTicker) drawChart(curTicker);
+}
+
+function drawChart(ticker) {
+  const stock = allData.stocks[ticker];
+  if (!stock) return;
+  const hist = stock.history || [];
+  const pred = stock.prediction;
+  const traces = [];
+
+  if (showHist && hist.length)
+    traces.push({ x:hist.map(p=>p.date), y:hist.map(p=>p.close), name:'History', type:'scatter', mode:'lines', line:{color:'#6366f1',width:2} });
+
+  if (showPred && pred?.dates)
+    traces.push({ x:pred.dates, y:pred.mean, name:'Prediction', type:'scatter', mode:'lines', line:{color:'#f59e0b',width:2,dash:'dot'} });
+
+  if (showBand && pred?.dates && pred.upper && pred.lower)
+    traces.push({ x:[...pred.dates,...pred.dates.slice().reverse()], y:[...pred.upper,...pred.lower.slice().reverse()], name:'90% CI', fill:'toself', fillcolor:'rgba(245,158,11,0.1)', line:{color:'transparent'} });
+
+  // Avg cost line
+  const pres = stock.portfolioPresence?.[0];
+  if (pres) {
+    const xRange = [hist[0]?.date, pred?.dates?.slice(-1)[0] || hist.slice(-1)[0]?.date].filter(Boolean);
+    if (xRange.length === 2)
+      traces.push({ x:xRange, y:[pres.avgCost,pres.avgCost], name:'Avg Cost', type:'scatter', mode:'lines', line:{color:'#4ade80',width:1.5,dash:'dash'} });
+  }
+
+  Plotly.react('price-chart', traces, {
+    paper_bgcolor:'transparent', plot_bgcolor:'transparent',
+    margin:{t:10,b:40,l:60,r:20}, height:250,
+    xaxis:{tickfont:{size:9,color:'#475569'},gridcolor:'#1a1e2e'},
+    yaxis:{tickfont:{size:9,color:'#475569'},gridcolor:'#1a1e2e',tickprefix:'₹'},
+    legend:{font:{color:'#94a3b8',size:9},bgcolor:'transparent',orientation:'h',y:-0.25},
+    hovermode:'x unified', hoverlabel:{bgcolor:'#1e2130',bordercolor:'#2d3148',font:{color:'#e2e8f0',size:10}},
+  });
+}
+
+function drill(ticker) {
+  if (!ticker || !allData?.stocks?.[ticker]) return;
+  curTicker = ticker;
+  const stock = allData.stocks[ticker];
+  const q = stock.quote;
+  const pres = stock.portfolioPresence;
+  const holding = pres?.[0];
+  const [signal, desc] = sig(holding?.pnlPct ?? 0);
+
+  const ext = ticker.endsWith('.NS') ? 'NS' : 'BO';
+  document.getElementById('exch-badge').className = `exch ${ext}`;
+  document.getElementById('exch-badge').textContent = ext === 'NS' ? 'NSE' : 'BSE';
+
+  const posHtml = holding ? `
+    <div class="position">
+      ${pres.map(p => `
+        <div class="pos-row"><span class="pos-label">Portfolio</span><span>${p.portfolioName}</span></div>
+        <div class="pos-row"><span class="pos-label">Shares</span><span>${p.shares}</span></div>
+        <div class="pos-row"><span class="pos-label">Avg Cost</span><span>${fmt(p.avgCost)}</span></div>
+        <div class="pos-row"><span class="pos-label">Current Value</span><span>${fmt(p.currentValue)}</span></div>
+        <div class="pos-row"><span class="pos-label">P&amp;L</span><span class="${cls(p.pnl)}">${p.pnl>=0?'+':''}${fmt(p.pnl)} (${pct(p.pnlPct)})</span></div>
+      `).join('')}
+    </div>` : '';
+
+  document.getElementById('detail').innerHTML = `
+    <div class="stock-header">
+      <div class="stock-name"><h3>${ticker.replace(/\.(NS|BO)$/,'')}</h3><div class="tick">${ticker}</div></div>
+      <div class="price-block"><div class="ltp">${fmt(q.price)}</div><div class="chg ${cls(q.change)}">${q.change>=0?'▲':'▼'} ${fmt(Math.abs(q.change))} (${pct(q.changePct)})</div></div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><div class="kl">Open</div><div class="kv">${fmt(q.open)}</div></div>
+      <div class="kpi"><div class="kl">High</div><div class="kv" style="color:#4ade80">${fmt(q.high)}</div></div>
+      <div class="kpi"><div class="kl">Low</div><div class="kv" style="color:#f87171">${fmt(q.low)}</div></div>
+      <div class="kpi"><div class="kl">Prev Close</div><div class="kv">${fmt(q.previousClose)}</div></div>
+      <div class="kpi"><div class="kl">Volume</div><div class="kv" style="font-size:11px">${(q.volume||0).toLocaleString('en-IN')}</div></div>
+    </div>
+    <div class="chart-box">
+      <div class="toggles">
+        <span id="tog-hist" class="tog on" onclick="toggleLayer('hist')">History</span>
+        <span id="tog-pred" class="tog on" onclick="toggleLayer('pred')">Prediction</span>
+        <span id="tog-band" class="tog on" onclick="toggleLayer('band')">Conf. Band</span>
+      </div>
+      <div id="price-chart"></div>
+    </div>
+    <div class="signal-block"><span class="pill pill-${signal}">${signal}</span><span class="sig-desc">${desc}</span></div>
+    ${posHtml}`;
+
+  drawChart(ticker);
+}
+
+window.addEventListener('jet:refresh', e => {
+  const d = e.detail;
+  if (!d?.ok) return;
+  allData = d;
+
+  const picker = document.getElementById('picker');
+  const prev = picker.value;
+  picker.innerHTML = '<option value="">— choose a stock —</option>';
+  for (const snap of d.snapshots) {
+    const grp = document.createElement('optgroup');
+    grp.label = snap.name;
+    for (const h of snap.holdings) {
+      const opt = document.createElement('option');
+      opt.value = h.ticker;
+      opt.textContent = `${h.ticker}  —  ${h.name}`;
+      grp.appendChild(opt);
+    }
+    picker.appendChild(grp);
+  }
+  if (prev && d.stocks[prev]) { picker.value = prev; drill(prev); }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'Inter',system-ui,sans-serif; background:#0f1117; color:#e2e8f0; padding:16px; }
+.tabs { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+.tab { padding:6px 14px; border-radius:7px; font-size:12px; font-weight:600; cursor:pointer; border:1px solid #2d3148; color:#64748b; background:#1e2130; transition:all .15s; }
+.tab.active { color:#fff; border-color:transparent; }
+.panel { display:none; }
+.panel.active { display:block; }
+.portfolio-meta { display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+.meta-chip { background:#1e2130; border:1px solid #2d3148; border-radius:8px; padding:8px 14px; }
+.meta-chip .ml { font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:.7px; }
+.meta-chip .mv { font-size:15px; font-weight:700; margin-top:2px; }
+.pos { color:#4ade80; } .neg { color:#f87171; }
+table { width:100%; border-collapse:collapse; font-size:12px; }
+thead tr { border-bottom:1px solid #2d3148; }
+th { text-align:left; padding:7px 10px; font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:.7px; font-weight:600; }
+td { padding:8px 10px; border-bottom:1px solid #1a1e2e; }
+tr:hover td { background:#1e2130; }
+.ticker { font-family:monospace; font-size:11px; color:#94a3b8; }
+.name { font-weight:600; color:#e2e8f0; }
+.sector-tag { background:#1a1e2e; border:1px solid #2d3148; border-radius:4px; padding:2px 7px; font-size:10px; color:#64748b; }
+.bar-bg { background:#1a1e2e; border-radius:99px; height:5px; width:100%; margin-top:3px; }
+.bar-fill { height:5px; border-radius:99px; }
+.signal { display:inline-block; padding:2px 8px; border-radius:99px; font-size:10px; font-weight:600; }
+.signal.BUY { background:#14532d; color:#4ade80; }
+.signal.HOLD { background:#1e3a5f; color:#60a5fa; }
+.signal.WATCH { background:#451a03; color:#fbbf24; }
+.signal.SELL { background:#4a1515; color:#f87171; }
+.loading { text-align:center; padding:40px; color:#64748b; }
+.spinner { display:inline-block; width:16px; height:16px; border:2px solid #2d3148; border-top-color:#6366f1; border-radius:50%; animation:spin .7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div id="tabs-row" class="tabs"><div class="loading"><div class="spinner"></div></div></div>
+<div id="panels"></div>
+
+<script>
+const COLORS = { 0:'#6366f1', 1:'#10b981', 2:'#f59e0b' };
+
+function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
+function pct(n) { return (n >= 0 ? '+' : '') + n.toFixed(2) + '%'; }
+function cls(n) { return n >= 0 ? 'pos' : 'neg'; }
+function signal(p) { return p < -10 ? 'SELL' : p < 0 ? 'WATCH' : p < 15 ? 'HOLD' : 'BUY'; }
+
+function switchTab(idx) {
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+  document.querySelectorAll('.panel').forEach((p, i) => p.classList.toggle('active', i === idx));
+}
+
+function render(snapshots) {
+  const icons = ['💻', '🏦', '🚀'];
+  document.getElementById('tabs-row').innerHTML = snapshots.map((s, i) =>
+    `<div class="tab${i===0?' active':''}" onclick="switchTab(${i})" style="${i===0?`background:${COLORS[i]};color:#fff;border-color:transparent`:''}">${icons[i]||''} ${s.name}</div>`
+  ).join('');
+
+  document.getElementById('panels').innerHTML = snapshots.map((snap, i) => {
+    const color = COLORS[i] || '#6366f1';
+    const rows = snap.holdings.map(h => {
+      const sig = signal(h.pnlPct);
+      return `<tr>
+        <td><div class="name">${h.name}</div><div class="ticker">${h.ticker}</div></td>
+        <td><span class="sector-tag">${h.sector}</span></td>
+        <td>${h.shares}</td><td>${fmt(h.avgCost)}</td><td>${fmt(h.ltp)}</td>
+        <td>${fmt(h.currentValue)}</td>
+        <td class="${cls(h.pnl)}">${h.pnl>=0?'+':''}${fmt(h.pnl)} (${pct(h.pnlPct)})</td>
+        <td>${h.weight.toFixed(1)}%<div class="bar-bg"><div class="bar-fill" style="width:${Math.min(100,h.weight).toFixed(1)}%;background:${color}"></div></div></td>
+        <td><span class="signal ${sig}">${sig}</span></td>
+      </tr>`;
+    }).join('');
+    return `<div class="panel${i===0?' active':''}">
+      <div class="portfolio-meta">
+        <div class="meta-chip"><div class="ml">Value</div><div class="mv">${fmt(snap.summary.totalValue)}</div></div>
+        <div class="meta-chip"><div class="ml">P&amp;L</div><div class="mv ${cls(snap.summary.totalPnL)}">${snap.summary.totalPnL>=0?'+':''}${fmt(snap.summary.totalPnL)}</div></div>
+        <div class="meta-chip"><div class="ml">Return</div><div class="mv ${cls(snap.summary.totalPnLPct)}">${pct(snap.summary.totalPnLPct)}</div></div>
+        <div class="meta-chip"><div class="ml">Day</div><div class="mv ${cls(snap.summary.dayChange)}">${pct(snap.summary.dayChangePct)}</div></div>
+        <div class="meta-chip"><div class="ml">Exchange</div><div class="mv" style="color:${color}">${snap.exchange}</div></div>
+      </div>
+      <table><thead><tr><th>Stock</th><th>Sector</th><th>Shares</th><th>Avg Cost</th><th>LTP</th><th>Curr. Value</th><th>P&amp;L</th><th>Weight</th><th>Signal</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`;
+  }).join('');
+}
+
+window.addEventListener('jet:refresh', e => {
+  const d = e.detail;
+  if (d?.ok && d.snapshots) render(d.snapshots);
+  else document.getElementById('tabs-row').innerHTML = `<div class="loading" style="color:#f87171">Error: ${d?.error || 'no data'}</div>`;
+});
+</script>
+</body>
+</html>

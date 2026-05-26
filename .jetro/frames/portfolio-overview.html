@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: #0f1117; color: #e2e8f0; padding: 16px; }
+  .header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .header h1 { font-size: 18px; font-weight: 700; color: #f1f5f9; letter-spacing: -0.3px; }
+  .badge { font-size: 10px; padding: 2px 7px; border-radius: 99px; font-weight: 600; }
+  .badge.nse { background: #1e3a5f; color: #60a5fa; }
+  .badge.bse { background: #14532d; color: #4ade80; }
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+  .kpi { background: #1e2130; border: 1px solid #2d3148; border-radius: 10px; padding: 12px 14px; }
+  .kpi .label { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; }
+  .kpi .value { font-size: 20px; font-weight: 700; margin-top: 4px; color: #f1f5f9; }
+  .kpi .sub { font-size: 11px; margin-top: 2px; }
+  .pos { color: #4ade80; } .neg { color: #f87171; }
+  .section-title { font-size: 12px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px; }
+  .portfolios-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
+  .pcard { background: #1e2130; border: 1px solid #2d3148; border-radius: 10px; padding: 14px; }
+  .pcard .pname { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+  .pcard .pexchange { font-size: 10px; color: #64748b; margin-bottom: 10px; }
+  .pcard .prow { display: flex; justify-content: space-between; font-size: 11px; padding: 3px 0; border-bottom: 1px solid #2d3148; }
+  .pcard .prow:last-child { border-bottom: none; }
+  .pcard .plabel { color: #94a3b8; }
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .chart-box { background: #1e2130; border: 1px solid #2d3148; border-radius: 10px; padding: 12px; }
+  .chart-title { font-size: 12px; font-weight: 600; color: #e2e8f0; margin-bottom: 8px; }
+  .loading { text-align: center; padding: 60px 20px; color: #475569; }
+  .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #2d3148; border-top-color: #6366f1; border-radius: 50%; animation: spin .7s linear infinite; margin-bottom: 10px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .ts { font-size: 11px; color: #64748b; margin-left: auto; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>&#x1F4CA; Indian Markets Portfolio Tracker</h1>
+  <span class="badge nse">NSE</span>
+  <span class="badge bse">BSE</span>
+  <span class="ts" id="ts"></span>
+</div>
+
+<div id="root"><div class="loading"><div class="spinner"></div><br>Loading live portfolio data…</div></div>
+
+<script>
+const COLORS = ['#6366f1', '#10b981', '#f59e0b'];
+
+function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
+function pct(n) { return (n >= 0 ? '+' : '') + n.toFixed(2) + '%'; }
+function cls(n) { return n >= 0 ? 'pos' : 'neg'; }
+
+function render(snapshots) {
+  const totalValue    = snapshots.reduce((s, x) => s + x.summary.totalValue, 0);
+  const totalInvested = snapshots.reduce((s, x) => s + x.summary.totalInvested, 0);
+  const totalPnL      = totalValue - totalInvested;
+  const totalPnLPct   = (totalPnL / totalInvested) * 100;
+  const dayChange     = snapshots.reduce((s, x) => s + x.summary.dayChange, 0);
+  const dayChangePct  = (dayChange / (totalValue - dayChange)) * 100;
+  const best = snapshots.reduce((b, x) => x.summary.totalPnLPct > b.summary.totalPnLPct ? x : b, snapshots[0]);
+
+  document.getElementById('ts').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+
+  const sectorMap = {};
+  for (const snap of snapshots)
+    for (const h of snap.holdings)
+      sectorMap[h.sector] = (sectorMap[h.sector] || 0) + 1;
+  const sectors = Object.entries(sectorMap).sort((a, b) => b[1] - a[1]);
+
+  document.getElementById('root').innerHTML = `
+    <div class="kpi-row">
+      <div class="kpi"><div class="label">Total Portfolio Value</div><div class="value">${fmt(totalValue)}</div><div class="sub ${cls(totalPnL)}">${totalPnL >= 0 ? '+' : ''}${fmt(totalPnL)} overall</div></div>
+      <div class="kpi"><div class="label">Total Invested</div><div class="value">${fmt(totalInvested)}</div><div class="sub" style="color:#94a3b8">Across ${snapshots.length} portfolios</div></div>
+      <div class="kpi"><div class="label">Overall Return</div><div class="value ${cls(totalPnLPct)}">${pct(totalPnLPct)}</div><div class="sub ${cls(best.summary.totalPnLPct)}">&#x25B2; Best: ${best.name} ${pct(best.summary.totalPnLPct)}</div></div>
+      <div class="kpi"><div class="label">Today's Change</div><div class="value ${cls(dayChange)}">${dayChange >= 0 ? '+' : ''}${fmt(dayChange)}</div><div class="sub ${cls(dayChangePct)}">${pct(dayChangePct)} on day</div></div>
+    </div>
+    <div class="section-title">Portfolios</div>
+    <div class="portfolios-grid">
+      ${snapshots.map((snap, i) => `
+        <div class="pcard" style="border-top: 3px solid ${COLORS[i]}">
+          <div class="pname" style="color:${COLORS[i]}">${snap.name}</div>
+          <div class="pexchange">${snap.exchange} · ${snap.summary.holdingCount} holdings</div>
+          <div class="prow"><span class="plabel">Current Value</span><span>${fmt(snap.summary.totalValue)}</span></div>
+          <div class="prow"><span class="plabel">Invested</span><span>${fmt(snap.summary.totalInvested)}</span></div>
+          <div class="prow"><span class="plabel">P&amp;L</span><span class="${cls(snap.summary.totalPnL)}">${snap.summary.totalPnL >= 0 ? '+' : ''}${fmt(snap.summary.totalPnL)} (${pct(snap.summary.totalPnLPct)})</span></div>
+          <div class="prow"><span class="plabel">Day Change</span><span class="${cls(snap.summary.dayChange)}">${snap.summary.dayChange >= 0 ? '+' : ''}${fmt(snap.summary.dayChange)} (${pct(snap.summary.dayChangePct)})</span></div>
+        </div>`).join('')}
+    </div>
+    <div class="charts-row">
+      <div class="chart-box"><div class="chart-title">Portfolio Value Distribution</div><div id="donut"></div></div>
+      <div class="chart-box"><div class="chart-title">Sector Allocation</div><div id="sector"></div></div>
+    </div>`;
+
+  const layout = { paper_bgcolor:'transparent', plot_bgcolor:'transparent', margin:{t:10,b:10,l:10,r:10}, showlegend:true, legend:{font:{color:'#94a3b8',size:10}, bgcolor:'transparent'}, font:{color:'#e2e8f0'} };
+  Plotly.newPlot('donut', [{ type:'pie', hole:0.55, values:snapshots.map(s=>s.summary.totalValue), labels:snapshots.map(s=>s.name), marker:{colors:COLORS}, textinfo:'percent', textfont:{size:10,color:'#fff'}, hovertemplate:'%{label}<br>₹%{value:,.0f}<extra></extra>' }], {...layout, height:180});
+  Plotly.newPlot('sector', [{ type:'bar', orientation:'h', x:sectors.map(s=>s[1]), y:sectors.map(s=>s[0]), marker:{color:COLORS.concat(['#34d399','#fb923c','#60a5fa','#a78bfa'])}, text:sectors.map(s=>String(s[1])), textposition:'outside', textfont:{color:'#94a3b8',size:9}, hovertemplate:'%{y}: %{x} stocks<extra></extra>' }], {...layout, height:180, xaxis:{visible:false,showgrid:false}, yaxis:{tickfont:{size:10,color:'#94a3b8'}, gridcolor:'#2d3148'}});
+}
+
+window.addEventListener('jet:refresh', e => {
+  const d = e.detail;
+  if (d?.ok && d.snapshots) render(d.snapshots);
+  else if (d?.error) document.getElementById('root').innerHTML = `<div class="loading" style="color:#f87171">Error: ${d.error}</div>`;
+});
+</script>
+</body>
+</html>

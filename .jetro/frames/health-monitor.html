@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'Inter',system-ui,sans-serif; background:#0f1117; color:#e2e8f0; padding:16px; }
+h2 { font-size:15px; font-weight:700; margin-bottom:4px; }
+.subtitle { font-size:11px; color:#64748b; margin-bottom:16px; }
+.status-bar { display:flex; align-items:center; gap:10px; background:#1e2130; border:1px solid #2d3148; border-radius:10px; padding:12px 16px; margin-bottom:14px; }
+.status-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.dot-healthy  { background:#22c55e; box-shadow:0 0 6px #22c55e88; }
+.dot-degraded { background:#f59e0b; box-shadow:0 0 6px #f59e0b88; }
+.dot-down     { background:#ef4444; box-shadow:0 0 6px #ef444488; }
+.status-label { font-size:14px; font-weight:700; }
+.uptime { margin-left:auto; font-size:11px; color:#64748b; }
+.components { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px; }
+.comp { background:#1e2130; border:1px solid #2d3148; border-radius:9px; padding:12px; }
+.comp-name { font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:.7px; margin-bottom:6px; }
+.comp-status { display:flex; align-items:center; gap:6px; font-size:13px; font-weight:700; margin-bottom:4px; }
+.comp-meta { font-size:11px; color:#94a3b8; }
+.comp-latency { font-size:10px; color:#475569; margin-top:2px; }
+.section-title { font-size:11px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:.7px; margin-bottom:8px; }
+.cache-table { width:100%; border-collapse:collapse; font-size:11px; }
+.cache-table th { text-align:left; padding:5px 8px; color:#64748b; border-bottom:1px solid #2d3148; font-size:10px; }
+.cache-table td { padding:5px 8px; border-bottom:1px solid #1a1e2e; }
+.fresh { color:#4ade80; } .stale { color:#f87171; }
+.charts-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
+.chart-box { background:#1e2130; border:1px solid #2d3148; border-radius:9px; padding:12px; }
+.chart-title { font-size:11px; font-weight:600; color:#e2e8f0; margin-bottom:8px; }
+.ts { font-size:10px; color:#475569; }
+.loading { text-align:center; padding:30px; color:#64748b; }
+</style>
+</head>
+<body>
+
+<div style="display:flex;align-items:center;margin-bottom:14px">
+  <div><h2>&#x1F4E1; System Health Monitor</h2><div class="subtitle">Database · Provider · Quote Cache · Live</div></div>
+  <span class="ts" style="margin-left:auto" id="ts">Waiting for data…</span>
+</div>
+
+<div class="status-bar">
+  <div class="status-dot dot-healthy" id="overall-dot"></div>
+  <span class="status-label" id="overall-label">—</span>
+  <span class="uptime" id="uptime"></span>
+</div>
+
+<div class="components">
+  <div class="comp"><div class="comp-name">&#x1F5C4;&#xFE0F; Database</div><div class="comp-status"><div class="status-dot" id="db-dot"></div><span id="db-status">—</span></div><div class="comp-meta" id="db-msg">—</div><div class="comp-latency" id="db-latency"></div></div>
+  <div class="comp"><div class="comp-name">&#x1F4E1; Data Provider</div><div class="comp-status"><div class="status-dot" id="prov-dot"></div><span id="prov-status">—</span></div><div class="comp-meta" id="prov-msg">—</div><div class="comp-latency" id="prov-latency"></div></div>
+  <div class="comp"><div class="comp-name">&#x26A1; Quote Cache</div><div class="comp-status"><div class="status-dot" id="cache-dot"></div><span id="cache-status">—</span></div><div class="comp-meta" id="cache-msg">—</div></div>
+</div>
+
+<div class="section-title">Cached Quotes</div>
+<table class="cache-table"><thead><tr><th>Ticker</th><th>Age</th><th>Status</th></tr></thead>
+<tbody id="cache-body"><tr><td colspan="3" style="color:#475569;padding:8px">Waiting…</td></tr></tbody></table>
+
+<div class="charts-row">
+  <div class="chart-box"><div class="chart-title">Component Latency (ms)</div><div id="latency-chart"></div></div>
+  <div class="chart-box"><div class="chart-title">Status Timeline</div><div id="timeline-chart"></div></div>
+</div>
+
+<script>
+const STATUS_COLOR = { healthy:'#22c55e', degraded:'#f59e0b', down:'#ef4444' };
+const history = [];
+
+function applyComp(prefix, comp) {
+  document.getElementById(`${prefix}-dot`).className = `status-dot dot-${comp.status}`;
+  document.getElementById(`${prefix}-status`).textContent = comp.status.toUpperCase();
+  document.getElementById(`${prefix}-msg`).textContent = comp.message || '';
+  const el = document.getElementById(`${prefix}-latency`);
+  if (el && comp.latencyMs != null) el.textContent = `Latency: ${comp.latencyMs}ms`;
+}
+
+window.addEventListener('jet:refresh', e => {
+  const d = e.detail;
+  if (!d?.ok) {
+    document.getElementById('overall-label').textContent = 'UNREACHABLE';
+    document.getElementById('overall-dot').className = 'status-dot dot-down';
+    document.getElementById('ts').textContent = d?.error || 'Connection failed';
+    return;
+  }
+
+  const h = d.health;
+  const entries = d.cache?.entries || [];
+
+  document.getElementById('overall-dot').className = `status-dot dot-${h.status}`;
+  document.getElementById('overall-label').textContent = h.status.toUpperCase();
+  document.getElementById('ts').textContent = 'Updated: ' + new Date(h.checkedAt).toLocaleTimeString();
+  const uh = Math.floor(h.uptime/3600), um = Math.floor((h.uptime%3600)/60);
+  document.getElementById('uptime').textContent = `Uptime: ${uh}h ${um}m`;
+
+  applyComp('db',   h.components.database);
+  applyComp('prov', h.components.provider);
+  applyComp('cache', h.components.cache);
+
+  document.getElementById('cache-body').innerHTML = entries.length
+    ? entries.map(e => `<tr><td style="font-family:monospace">${e.ticker}</td><td>${e.ageSeconds}s</td><td class="${e.stale?'stale':'fresh'}">${e.stale?'⚠ Stale':'✓ Fresh'}</td></tr>`).join('')
+    : `<tr><td colspan="3" style="color:#475569;padding:8px">No quotes cached</td></tr>`;
+
+  const ts = new Date().toLocaleTimeString();
+  history.push({ ts, status: h.status, dbLat: h.components.database.latencyMs||0, provLat: h.components.provider.latencyMs||0 });
+  if (history.length > 20) history.shift();
+
+  const plotLayout = { paper_bgcolor:'transparent', plot_bgcolor:'transparent', margin:{t:10,b:30,l:40,r:10}, height:130, xaxis:{tickfont:{size:9,color:'#475569'},gridcolor:'#1a1e2e'}, yaxis:{tickfont:{size:9,color:'#475569'},gridcolor:'#1a1e2e'}, showlegend:false };
+
+  Plotly.react('latency-chart', [
+    { x:history.map(p=>p.ts), y:history.map(p=>p.dbLat),   name:'DB',       type:'scatter', mode:'lines', line:{color:'#4ade80',width:1.5}, fill:'tozeroy', fillcolor:'#4ade8015' },
+    { x:history.map(p=>p.ts), y:history.map(p=>p.provLat), name:'Provider', type:'scatter', mode:'lines', line:{color:'#60a5fa',width:1.5}, fill:'tozeroy', fillcolor:'#60a5fa15' },
+  ], { ...plotLayout, yaxis:{...plotLayout.yaxis, ticksuffix:'ms'} });
+
+  Plotly.react('timeline-chart', [{
+    x:history.map(p=>p.ts), y:history.map(p=>p.status==='healthy'?1:p.status==='degraded'?0.5:0),
+    type:'bar', marker:{color:history.map(p=>STATUS_COLOR[p.status]||'#475569')},
+    hovertemplate:'%{x}: %{customdata}<extra></extra>', customdata:history.map(p=>p.status),
+  }], { ...plotLayout, yaxis:{...plotLayout.yaxis, tickvals:[0,0.5,1], ticktext:['down','deg.','ok']} });
+});
+</script>
+</body>
+</html>
