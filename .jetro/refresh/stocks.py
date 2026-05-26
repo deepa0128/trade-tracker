@@ -52,14 +52,14 @@ def get(path, token=None):
     req = urllib.request.Request(f"{BASE}{path}")
     if token:
         req.add_header("Authorization", f"Bearer {token}")
-    with urllib.request.urlopen(req, timeout=10) as r:
+    with urllib.request.urlopen(req, timeout=3) as r:
         return json.loads(r.read())
 
 
 def post(path):
     req = urllib.request.Request(f"{BASE}{path}", data=b"{}", method="POST")
     req.add_header("Content-Type", "application/json")
-    with urllib.request.urlopen(req, timeout=8) as r:
+    with urllib.request.urlopen(req, timeout=3) as r:
         return json.loads(r.read())
 
 

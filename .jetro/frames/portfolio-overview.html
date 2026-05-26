@@ -11,6 +11,7 @@
   .badge { font-size: 10px; padding: 2px 7px; border-radius: 99px; font-weight: 600; }
   .badge.nse { background: #1e3a5f; color: #60a5fa; }
   .badge.bse { background: #14532d; color: #4ade80; }
+  .badge.offline { background: #2d1e0a; color: #f59e0b; }
   .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
   .kpi { background: #1e2130; border: 1px solid #2d3148; border-radius: 10px; padding: 12px 14px; }
   .kpi .label { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; }
@@ -40,6 +41,7 @@
   <h1>&#x1F4CA; Indian Markets Portfolio Tracker</h1>
   <span class="badge nse">NSE</span>
   <span class="badge bse">BSE</span>
+  <span class="badge offline" id="offline-badge" style="display:none">⚠ mock data</span>
   <span class="ts" id="ts"></span>
 </div>
 
@@ -100,8 +102,12 @@ function render(snapshots) {
 
 window.addEventListener('jet:refresh', e => {
   const d = e.detail;
-  if (d?.ok && d.snapshots) render(d.snapshots);
-  else if (d?.error) document.getElementById('root').innerHTML = `<div class="loading" style="color:#f87171">Error: ${d.error}</div>`;
+  if (d?.ok && d.snapshots) {
+    document.getElementById('offline-badge').style.display = d._source ? '' : 'none';
+    render(d.snapshots);
+  } else if (d?.error) {
+    document.getElementById('root').innerHTML = `<div class="loading" style="color:#f87171">Error: ${d.error}</div>`;
+  }
 });
 </script>
 </body>

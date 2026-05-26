@@ -38,6 +38,7 @@ tr:hover td { background:#1e2130; }
 <body>
 
 <div id="tabs-row" class="tabs"><div class="loading"><div class="spinner"></div></div></div>
+<span id="offline-badge" style="display:none;font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;background:#2d1e0a;color:#f59e0b;margin-bottom:8px;display:none">⚠ mock data · server offline</span>
 <div id="panels"></div>
 
 <script>
@@ -89,8 +90,13 @@ function render(snapshots) {
 
 window.addEventListener('jet:refresh', e => {
   const d = e.detail;
-  if (d?.ok && d.snapshots) render(d.snapshots);
-  else document.getElementById('tabs-row').innerHTML = `<div class="loading" style="color:#f87171">Error: ${d?.error || 'no data'}</div>`;
+  if (d?.ok && d.snapshots) {
+    const badge = document.getElementById('offline-badge');
+    badge.style.display = d._source ? 'inline-block' : 'none';
+    render(d.snapshots);
+  } else {
+    document.getElementById('tabs-row').innerHTML = `<div class="loading" style="color:#f87171">Error: ${d?.error || 'no data'}</div>`;
+  }
 });
 </script>
 </body>

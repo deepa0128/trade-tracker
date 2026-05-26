@@ -52,7 +52,15 @@ Bindings are **not** persisted across sessions. Re-attach with `jet_canvas bind`
 
 ## Refresh Script Fallback
 
-`stocks.py` falls back to `jet.market.Ticker` (Jetro's built-in NSE data, free, no quota) when the local server is unreachable. This keeps canvas frames live even when the backend is restarting.
+All three scripts time out after **3 s** and fall back gracefully when the local server is unreachable:
+
+| Script | Fallback behaviour | Flag emitted |
+|---|---|---|
+| `stocks.py` | Reconstructs snapshots + live quotes via `jet.market.Ticker` | `_source: "jet.market"` |
+| `portfolio.py` | Reconstructs portfolio snapshots from seed definitions + `jet.market.Ticker` prices | `_source: "seed_fallback"` |
+| `health.py` | Emits structured health with all components `"down"` | `_offline: true` |
+
+Portfolio frames show a **"⚠ mock data"** badge when `d._source` is set. Price history, 30-day predictions, and health latency charts are only available when the Fastify backend is running.
 
 ## Tests
 
