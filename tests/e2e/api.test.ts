@@ -53,8 +53,8 @@ describe('POST /api/auth/guest', () => {
     expect(res1.statusCode).toBe(201);
     expect(res2.statusCode).toBe(201);
     // Both tokens should decode to the same GUEST_SESSION_ID sub
-    const t1 = res1.json<{ token: string }>().token.split('.')[1];
-    const t2 = res2.json<{ token: string }>().token.split('.')[1];
+    const t1 = res1.json<{ token: string }>().token.split('.')[1]!;
+    const t2 = res2.json<{ token: string }>().token.split('.')[1]!;
     const sub1 = JSON.parse(Buffer.from(t1, 'base64url').toString()).sub;
     const sub2 = JSON.parse(Buffer.from(t2, 'base64url').toString()).sub;
     expect(sub1).toBe(sub2);
@@ -105,7 +105,7 @@ describe('GET /api/portfolios/:id/snapshot', () => {
 
     const res = await app.inject({
       method: 'GET',
-      url: `/api/portfolios/${first.id}/snapshot`,
+      url: `/api/portfolios/${first!.id}/snapshot`,
       headers: { authorization: `Bearer ${guestToken}` },
     });
     expect(res.statusCode).toBe(200);
