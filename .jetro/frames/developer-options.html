@@ -202,8 +202,8 @@ function switchTab(name) {
   });
   document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
   document.getElementById('panel-' + name).classList.add('active');
-  if (name === 'logs') loadLogs();
-  if (name === 'provider') loadProvider();
+  if (name === 'logs') renderLogs();
+  if (name === 'provider' && currentProviderData) renderProvider(currentProviderData);
 }
 
 function statusDot(s) {
@@ -282,6 +282,7 @@ function renderOverview(d) {
 // ── Provider ─────────────────────────────────────────────────────────────────
 
 var currentProvider = 'mock';
+var currentProviderData = null;
 
 var PROVIDERS = [
   { type: 'yfinance', name: 'yfinance', badge: 'live', desc: 'Yahoo Finance via Python subprocess. Fetches real NSE/BSE/global quotes. Requires Python + yfinance installed.', color: 'var(--green)' },
@@ -336,9 +337,9 @@ async function switchProvider(type) {
     var d = await res.json();
     if (!res.ok) { toast(d.error || 'Switch failed', 'err'); return; }
     currentProvider = d.type;
-    toast('Switched to ' + d.type + (d.available ? '' : ' (unavailable — using mock)'), d.available ? 'ok' : 'err');
-    loadProvider();
-    loadAll();
+    currentProviderData = d;
+    toast('Switched to ' + d.type + (d.available ? '' : ' (unavailable — using mock)') + ' — refreshing in 30s', d.available ? 'ok' : 'err');
+    renderProvider(d);
   } catch(e) {
     toast(e.message, 'err');
   }
@@ -605,6 +606,7 @@ function applyData(payload) {
 
   if (payload.provider) {
     currentProvider = payload.provider.type;
+    currentProviderData = payload.provider;
     if (document.getElementById('panel-provider').classList.contains('active')) {
       renderProvider(payload.provider);
     }
