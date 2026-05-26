@@ -157,6 +157,47 @@ function renderCards() {
 
 redraw();
 renderCards();
+
+// Colour + portfolio metadata keyed by ticker — preserved across refreshes
+const META = {};
+RAW.forEach(s => { META[s.ticker] = { color: s.color, label: s.label, portfolio: s.portfolio }; });
+
+window.addEventListener('jet:refresh', e => {
+  const d = e.detail;
+  if (!d?.ok || !d.stocks) return;
+
+  const updated = [];
+  RAW.forEach(seed => {
+    const live = d.stocks[seed.ticker];
+    if (!live || !live.history || !live.prediction) {
+      updated.push(seed); // keep seed data if server didn't return this ticker
+      return;
+    }
+    const hist_dates = live.history.map(p => p.date);
+    const hist       = live.history.map(p => p.close);
+    const pred       = live.prediction;
+    const ltp        = live.quote?.price ?? hist[hist.length - 1] ?? seed.ltp;
+    const pred_target = pred.mean[pred.mean.length - 1] ?? ltp;
+    const pred_upside = +((pred_target / ltp - 1) * 100).toFixed(1);
+    updated.push({
+      ticker:     seed.ticker,
+      label:      seed.label,
+      color:      seed.color,
+      portfolio:  seed.portfolio,
+      hist_dates, hist,
+      pred_dates: pred.dates,
+      pred:       pred.mean,
+      pred_upper: pred.upper,
+      pred_lower: pred.lower,
+      ltp, pred_target, pred_upside,
+    });
+  });
+
+  RAW.length = 0;
+  updated.forEach(s => RAW.push(s));
+  redraw();
+  renderCards();
+});
 </script>
 </body>
 </html>

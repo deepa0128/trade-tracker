@@ -142,7 +142,7 @@
   <span class="header-title">Developer Options</span>
   <span id="overall-badge" class="header-badge warn">Loading…</span>
   <span class="ts" id="gen-ts"></span>
-  <button class="refresh-btn" onclick="loadAll()">↻ Refresh</button>
+  <button class="refresh-btn" id="refresh-btn">↻ Refresh</button>
 </div>
 
 <div class="tabs">
@@ -588,37 +588,63 @@ function showError(msg) {
   badge.className = 'header-badge err';
 }
 
-// ── Main load ─────────────────────────────────────────────────────────────────
+// ── Data application (from jet:refresh payload) ───────────────────────────────
+
+function applyData(payload) {
+  if (!payload.ok) {
+    showError(payload.error || 'Server offline');
+    renderRoutes({ exchanges: [] });
+    return;
+  }
+  devData = payload.dev;
+  renderOverview(devData);
+  renderRoutes(Object.assign({}, devData, { rawRoutes: payload.rawRoutes || null }));
+  renderRuntime(devData);
+  renderDatabase(devData);
+  renderEnv(devData);
+
+  if (payload.provider) {
+    currentProvider = payload.provider.type;
+    if (document.getElementById('panel-provider').classList.contains('active')) {
+      renderProvider(payload.provider);
+    }
+  }
+  if (payload.logs) {
+    logsData = payload.logs;
+    if (document.getElementById('panel-logs').classList.contains('active')) {
+      renderLogs();
+    }
+  }
+}
+
+// ── Manual refresh (fallback fetch, works if server is reachable from webview) ─
 
 async function loadAll() {
   try {
-    var devRes = await fetch(BASE + '/api/dev');
+    var devRes    = await fetch(BASE + '/api/dev');
     var routesRes = await fetch(BASE + '/api/dev/routes');
+    var logsRes   = await fetch(BASE + '/api/dev/logs');
+    var provRes   = await fetch(BASE + '/api/dev/provider');
 
     if (!devRes.ok) throw new Error('/api/dev returned ' + devRes.status);
-    devData = await devRes.json();
-
-    var rawRoutes = null;
-    if (routesRes.ok) { rawRoutes = (await routesRes.json()).routes; }
-
-    renderOverview(devData);
-    renderRoutes(Object.assign({}, devData, { rawRoutes: rawRoutes }));
-    renderRuntime(devData);
-    renderDatabase(devData);
-    renderEnv(devData);
-
-    if (document.getElementById('panel-provider').classList.contains('active')) loadProvider();
-    if (document.getElementById('panel-logs').classList.contains('active')) loadLogs();
-
+    var payload = {
+      ok:        true,
+      dev:       await devRes.json(),
+      rawRoutes: routesRes.ok ? (await routesRes.json()).routes : null,
+      logs:      logsRes.ok  ? (await logsRes.json()).logs     : [],
+      provider:  provRes.ok  ? await provRes.json()            : null,
+    };
+    applyData(payload);
   } catch(e) {
     showError(e.message || 'Could not connect to API server at ' + BASE);
     renderRoutes({ exchanges: [] });
   }
 }
 
-loadAll();
-setInterval(loadAll, 30000);
-window.addEventListener('jet:refresh', function() { loadAll(); });
+// Primary: data arrives via dev.py → jet:refresh (runs server-side in WSL)
+window.addEventListener('jet:refresh', function(e) { applyData(e.detail); });
+// Secondary: manual refresh button tries direct fetch from webview
+document.getElementById('refresh-btn').addEventListener('click', loadAll);
 </script>
 </body>
 </html>
