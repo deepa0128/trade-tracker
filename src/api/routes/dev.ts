@@ -4,6 +4,7 @@ import { getDb } from '../../db/client.js';
 import { HealthChecker } from '../../health/checker.js';
 import { QuoteCache } from '../../market/cache.js';
 import { ExchangeRegistry } from '../../exchanges/registry.js';
+import { getRecentLogs, clearLogs } from '../../dev/request-log.js';
 import { createProviderWithFallback } from '../../providers/factory.js';
 
 /**
@@ -54,10 +55,11 @@ export async function devRoutes(app: FastifyInstance): Promise<void> {
   });
 
   const sql = MEMORY_MODE ? null : getDb();
-  const provider = await createProviderWithFallback(
-    (process.env['MARKET_DATA_PROVIDER'] as 'yfinance') ?? 'mock',
+  let activeProviderType: string = process.env['MARKET_DATA_PROVIDER'] ?? 'mock';
+  let activeProvider = await createProviderWithFallback(
+    activeProviderType as Parameters<typeof createProviderWithFallback>[0],
   );
-  const checker = new HealthChecker(sql, provider);
+  let checker = new HealthChecker(sql, activeProvider);
 
   /** GET /api/dev — full diagnostic snapshot */
   app.get('/', async (_req, reply) => {
@@ -116,5 +118,39 @@ export async function devRoutes(app: FastifyInstance): Promise<void> {
   /** GET /api/dev/config — sanitized environment */
   app.get('/config', (_req, reply) => {
     return reply.send({ config: sanitizeEnv(), environment: process.env['NODE_ENV'] ?? 'development' });
+  });
+
+  /** GET /api/dev/logs — recent request ring buffer */
+  app.get('/logs', (_req, reply) => {
+    return reply.send({ logs: getRecentLogs(50) });
+  });
+
+  /** DELETE /api/dev/cache — evict all cached quotes */
+  app.delete('/cache', (_req, reply) => {
+    QuoteCache.clear();
+    clearLogs();
+    return reply.send({ ok: true, message: 'Cache and request log cleared' });
+  });
+
+  /** GET /api/dev/provider — active provider status */
+  app.get('/provider', async (_req, reply) => {
+    const available = await activeProvider.isAvailable();
+    return reply.send({ type: activeProviderType, available });
+  });
+
+  /** POST /api/dev/provider/:type — switch active market data provider */
+  app.post<{ Params: { type: string } }>('/provider/:type', async (req, reply) => {
+    const { type } = req.params;
+    const validTypes = ['mock', 'yfinance'];
+    if (!validTypes.includes(type)) {
+      return reply.code(400).send({ error: `Unknown provider '${type}'. Valid: ${validTypes.join(', ')}` });
+    }
+    activeProvider = await createProviderWithFallback(
+      type as Parameters<typeof createProviderWithFallback>[0],
+    );
+    checker = new HealthChecker(sql, activeProvider);
+    activeProviderType = type;
+    const available = await activeProvider.isAvailable();
+    return reply.send({ ok: true, type: activeProviderType, available });
   });
 }
