@@ -40,7 +40,6 @@ EMAIL.md
 # Cached market data
 data/stocks/
 data/datasets/
-data/lists/
 
 # Jetro project state (canvas sessions)
 projects/
