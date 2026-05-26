@@ -11,7 +11,6 @@ EMAIL.md
 # Editor / AI tooling (local only)
 .claude/
 .cursor/
-.agents/
 .mcp.json
 .windsurfrules
 
