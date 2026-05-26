@@ -1,0 +1,20 @@
+{
+  "tickers": [
+    "ZOMATO.NS",
+    "IRCTC.NS",
+    "TATAELXSI.NS",
+    "DIXON.NS",
+    "POLYCAB.NS",
+    "KAYNES.NS",
+    "RVNL.NS",
+    "RAILTEL.NS",
+    "CDSL.NS",
+    "MAPMYINDIA.NS"
+  ],
+  "criteria": "High-growth mid-caps benefiting from domestic consumption, digital infra, and PLI schemes",
+  "thesis": "India's domestic growth story — these names capture the PLI, digital infra, and consumer upgrade themes with higher beta than large caps.",
+  "refreshInterval": "daily",
+  "name": "Mid Cap India Opportunities",
+  "createdAt": "2026-05-26T09:40:46.932Z",
+  "refreshable": true
+}

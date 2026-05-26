@@ -1,0 +1,20 @@
+{
+  "tickers": [
+    "RELIANCE.BO",
+    "HDFCBANK.BO",
+    "HINDUNILVR.BO",
+    "ITC.BO",
+    "NESTLEIND.BO",
+    "TATAMOTORS.BO",
+    "MARUTI.BO",
+    "ASIANPAINT.BO",
+    "BAJFINANCE.BO",
+    "TITAN.BO"
+  ],
+  "criteria": "Sensex heavyweights — large-cap, liquid, defensive BSE-listed stocks",
+  "thesis": "Capital preservation with steady compounding. These stocks have survived multiple cycles and carry institutional backing.",
+  "refreshInterval": "daily",
+  "name": "BSE Blue Chip",
+  "createdAt": "2026-05-26T09:40:44.412Z",
+  "refreshable": true
+}

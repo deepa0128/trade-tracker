@@ -1,0 +1,20 @@
+{
+  "tickers": [
+    "TCS.NS",
+    "INFY.NS",
+    "HCLTECH.NS",
+    "WIPRO.NS",
+    "PERSISTENT.NS",
+    "LTIM.NS",
+    "TECHM.NS",
+    "MPHASIS.NS",
+    "COFORGE.NS",
+    "OFSS.NS"
+  ],
+  "criteria": "Large and mid-cap NSE-listed IT services companies",
+  "thesis": "Indian IT sector — dollar-revenue tailwind, high ROCE, resilient earnings through cycles. Core holdings for tech exposure.",
+  "refreshInterval": "daily",
+  "name": "NSE Tech Stocks",
+  "createdAt": "2026-05-26T09:40:41.021Z",
+  "refreshable": true
+}

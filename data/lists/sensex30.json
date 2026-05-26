@@ -1,0 +1,33 @@
+{
+  "name": "BSE Sensex 30",
+  "exchange": "BSE",
+  "indexCode": "SENSEX",
+  "updatedAt": "2026-05-26",
+  "constituents": [
+    { "symbol": "RELIANCE",   "ticker": "RELIANCE.BO",   "name": "Reliance Industries",      "sector": "Energy",     "weight": 11.2 },
+    { "symbol": "HDFCBANK",   "ticker": "HDFCBANK.BO",   "name": "HDFC Bank",                 "sector": "Banking",    "weight": 9.8  },
+    { "symbol": "ICICIBANK",  "ticker": "ICICIBANK.BO",  "name": "ICICI Bank",                "sector": "Banking",    "weight": 7.4  },
+    { "symbol": "INFY",       "ticker": "INFY.BO",       "name": "Infosys",                   "sector": "IT",         "weight": 6.5  },
+    { "symbol": "TCS",        "ticker": "TCS.BO",        "name": "Tata Consultancy Services", "sector": "IT",         "weight": 5.8  },
+    { "symbol": "HINDUNILVR", "ticker": "HINDUNILVR.BO", "name": "Hindustan Unilever",        "sector": "FMCG",       "weight": 4.7  },
+    { "symbol": "ITC",        "ticker": "ITC.BO",        "name": "ITC Ltd",                   "sector": "FMCG",       "weight": 4.2  },
+    { "symbol": "SBIN",       "ticker": "SBIN.BO",       "name": "State Bank of India",       "sector": "Banking",    "weight": 3.9  },
+    { "symbol": "BAJFINANCE", "ticker": "BAJFINANCE.BO", "name": "Bajaj Finance",             "sector": "Finance",    "weight": 3.7  },
+    { "symbol": "HCLTECH",    "ticker": "HCLTECH.BO",    "name": "HCL Technologies",          "sector": "IT",         "weight": 3.2  },
+    { "symbol": "ASIANPAINT", "ticker": "ASIANPAINT.BO", "name": "Asian Paints",              "sector": "Consumer",   "weight": 2.8  },
+    { "symbol": "MARUTI",     "ticker": "MARUTI.BO",     "name": "Maruti Suzuki",             "sector": "Auto",       "weight": 2.7  },
+    { "symbol": "AXISBANK",   "ticker": "AXISBANK.BO",   "name": "Axis Bank",                 "sector": "Banking",    "weight": 2.5  },
+    { "symbol": "SUNPHARMA",  "ticker": "SUNPHARMA.BO",  "name": "Sun Pharmaceutical",        "sector": "Pharma",     "weight": 2.4  },
+    { "symbol": "NESTLEIND",  "ticker": "NESTLEIND.BO",  "name": "Nestle India",              "sector": "FMCG",       "weight": 2.2  },
+    { "symbol": "TITAN",      "ticker": "TITAN.BO",      "name": "Titan Company",             "sector": "Consumer",   "weight": 2.1  },
+    { "symbol": "TATAMOTORS", "ticker": "TATAMOTORS.BO", "name": "Tata Motors",               "sector": "Auto",       "weight": 2.0  },
+    { "symbol": "KOTAKBANK",  "ticker": "KOTAKBANK.BO",  "name": "Kotak Mahindra Bank",       "sector": "Banking",    "weight": 1.9  },
+    { "symbol": "WIPRO",      "ticker": "WIPRO.BO",      "name": "Wipro Ltd",                 "sector": "IT",         "weight": 1.8  },
+    { "symbol": "ULTRACEMCO", "ticker": "ULTRACEMCO.BO", "name": "UltraTech Cement",          "sector": "Cement",     "weight": 1.7  },
+    { "symbol": "POWERGRID",  "ticker": "POWERGRID.BO",  "name": "Power Grid Corporation",    "sector": "Utilities",  "weight": 1.6  },
+    { "symbol": "NTPC",       "ticker": "NTPC.BO",       "name": "NTPC Ltd",                  "sector": "Utilities",  "weight": 1.5  },
+    { "symbol": "ONGC",       "ticker": "ONGC.BO",       "name": "ONGC",                      "sector": "Energy",     "weight": 1.4  },
+    { "symbol": "JSWSTEEL",   "ticker": "JSWSTEEL.BO",   "name": "JSW Steel",                 "sector": "Metals",     "weight": 1.3  },
+    { "symbol": "TATASTEEL",  "ticker": "TATASTEEL.BO",  "name": "Tata Steel",                "sector": "Metals",     "weight": 1.2  }
+  ]
+}
