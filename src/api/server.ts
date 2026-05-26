@@ -9,6 +9,7 @@ import { marketRoutes } from './routes/market.js';
 import { healthRoutes } from './routes/health.js';
 import { devRoutes } from './routes/dev.js';
 import { InMemoryPortfolioRepository } from '../db/memory-repo.js';
+import { logRequest } from '../dev/request-log.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const INDEX_HTML = readFileSync(join(__dirname, '../../public/index.html'), 'utf-8');
@@ -26,6 +27,17 @@ const MEMORY_MODE = process.env['MEMORY_MODE'] === 'true';
 export async function createServer() {
   const app = Fastify({
     logger: { level: process.env['LOG_LEVEL'] ?? 'info' },
+  });
+
+  // ── Request log (dev ring buffer) ───────────────────────────────────────────
+  app.addHook('onResponse', (req, reply, done) => {
+    logRequest({
+      method: req.method,
+      url: req.url,
+      statusCode: reply.statusCode,
+      responseTimeMs: Math.round(reply.elapsedTime),
+    });
+    done();
   });
 
   // ── Plugins ─────────────────────────────────────────────────────────────────
